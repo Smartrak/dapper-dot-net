@@ -29,9 +29,10 @@
     <file src="Dapper.EntityFramework NET45 SNK\bin\Release\Dapper.EntityFramework.dll" target="lib\net45" />
     <file src="Dapper.EntityFramework NET45 SNK\bin\Release\Dapper.EntityFramework.pdb" target="lib\net45" />
     <file src="Dapper.EntityFramework NET45 SNK\bin\Release\Dapper.EntityFramework.xml" target="lib\net45" />
-    
+
     <file src="Dapper.EntityFramework NET40 SNK\bin\Release\Dapper.EntityFramework.dll" target="lib\net40" />
     <file src="Dapper.EntityFramework NET40 SNK\bin\Release\Dapper.EntityFramework.pdb" target="lib\net40" />
     <file src="Dapper.EntityFramework NET40 SNK\bin\Release\Dapper.EntityFramework.xml" target="lib\net40" />
+    <file src="Dapper.EntityFramework NET40 SNK\bin\Release\**\**\*.*" target="content" exclude="Dapper.EntityFramework NET40 SNK\bin\Release\**\**\*.*" />
   </files>
 </package>
