@@ -5,8 +5,8 @@ obj/
 /*.user
 _Resharper*
 .hgtags
-NuGet.exe
 *.user
 *.nupkg
 .docstats
 *.ide/
+packages/
