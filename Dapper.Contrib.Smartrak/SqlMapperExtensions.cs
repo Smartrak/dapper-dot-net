@@ -639,7 +639,7 @@ namespace Dapper.Contrib.Smartrak.Extensions
 		{
 			public bool Equals(PropertyInfo x, PropertyInfo y)
 			{
-				return x.Name == y.Name;
+				return x.Name == y.Name && x.DeclaringType == y.DeclaringType;
 			}
 
 			public int GetHashCode(PropertyInfo obj)
