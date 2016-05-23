@@ -10,3 +10,5 @@ _Resharper*
 .docstats
 *.ide/
 packages/
+*.ncrunchproject
+Dapper.v2.ncrunchsolution
