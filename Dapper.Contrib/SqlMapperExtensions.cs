@@ -426,7 +426,11 @@ namespace Dapper.Contrib.Extensions
                 //This is only here so that people using the delegate wont break
                 Dapper.Config.GetDbmsTypeFromConnection = (connection) =>
                 {
-                    var name = value(connection).ToLowerInvariant();
+                    var name = connection == null ? null : connection.GetType().Name.ToLowerInvariant(); ;
+                    if (value != null)
+                    {
+                        name = value(connection).ToLowerInvariant();
+                    }
                     switch (name)
                     {
                         case "npgsqlconnection":
@@ -645,7 +649,7 @@ public partial class SqlServerAdapter : ISqlAdapter
     {
 
         var cmd = String.Format("insert into {0} ({1}) values ({2});select SCOPE_IDENTITY() id", tableName, columnList, parameterList);
-        var multi = connection.QueryMultiple(cmd,entityToInsert , transaction, commandTimeout);
+        var multi = connection.QueryMultiple(cmd, entityToInsert, transaction, commandTimeout);
 
         var id = (int)multi.Read().First().id;
         var propertyInfos = keyProperties as PropertyInfo[] ?? keyProperties.ToArray();
