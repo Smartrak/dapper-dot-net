@@ -252,10 +252,8 @@ namespace Dapper.Contrib.Smartrak.Extensions
 			if (TypeIsTablePerType(type))
 				return TablePerTypeInsert(connection, entityToInsert, transaction, commandTimeout);
 
-			ISqlAdapter adapter = GetFormatter(connection);
-
+			var adapter = GetFormatter(connection);
 			var name = GetTableName(type);
-
 
 			var allProperties = TypePropertiesCache(type);
 			var keyProperties = KeyPropertiesCache(type);
@@ -265,7 +263,7 @@ namespace Dapper.Contrib.Smartrak.Extensions
 			var columnList = GenerateColumnList<T>(allPropertiesExceptKeyAndComputed, adapter);
 			var parameterList = GenerateParameterList<T>(allPropertiesExceptKeyAndComputed);
 
-			int id = adapter.Insert(connection, transaction, commandTimeout, name, columnList, parameterList, keyProperties, entityToInsert);
+			var id = adapter.Insert(connection, transaction, commandTimeout, name, columnList, parameterList, keyProperties, entityToInsert);
 			return id;
 		}
 
@@ -700,23 +698,26 @@ namespace Dapper.Contrib.Smartrak.Extensions
 
 public interface ISqlAdapter
 {
-	int Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, String tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert);
+	long Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert);
 	string ColumnNameIndicator { get; }
 }
 
 public class SqlServerAdapter : ISqlAdapter
 {
-	public int Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, String tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
+	public long Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
 	{
-		string cmd = String.Format("insert into {0} ({1}) values ({2})", tableName, columnList, parameterList);
+		var cmd = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", tableName, columnList, parameterList);
 
 		connection.Execute(cmd, entityToInsert, transaction: transaction, commandTimeout: commandTimeout);
 
 		//NOTE: would prefer to use IDENT_CURRENT('tablename') or IDENT_SCOPE but these are not available on SQLCE
-		var r = connection.Query("select @@IDENTITY id", transaction: transaction, commandTimeout: commandTimeout);
-		int id = (int)r.First().id;
-		if (keyProperties.Any())
-			keyProperties.First().SetValue(entityToInsert, id, null);
+		var r = connection.Query("SELECT @@IDENTITY id", transaction: transaction, commandTimeout: commandTimeout);
+		var id = (long)r.First().id;
+
+		var propertyInfos = keyProperties.ToList();
+		if (propertyInfos.Any())
+			propertyInfos.First().SetValue(entityToInsert, id, null);
+
 		return id;
 	}
 
@@ -725,19 +726,20 @@ public class SqlServerAdapter : ISqlAdapter
 
 public class PostgresAdapter : ISqlAdapter
 {
-	public int Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, String tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
+	public long Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
 	{
-		StringBuilder sb = new StringBuilder();
-		sb.AppendFormat("insert into {0} ({1}) values ({2})", tableName, columnList, parameterList);
+		var sb = new StringBuilder();
+		sb.AppendFormat("INSERT INTO {0} ({1}) VALUES ({2})", tableName, columnList, parameterList);
 
 		// If no primary key then safe to assume a join table with not too much data to return
-		if (!keyProperties.Any())
+		var propertyInfos = keyProperties.ToList();
+		if (!propertyInfos.Any())
 			sb.Append(" RETURNING *");
 		else
 		{
 			sb.Append(" RETURNING ");
-			bool first = true;
-			foreach (var property in keyProperties)
+			var first = true;
+			foreach (var property in propertyInfos)
 			{
 				if (!first)
 					sb.Append(", ");
@@ -749,13 +751,13 @@ public class PostgresAdapter : ISqlAdapter
 		var results = connection.Query(sb.ToString(), entityToInsert, transaction: transaction, commandTimeout: commandTimeout);
 
 		// Return the key by assinging the corresponding property in the object - by product is that it supports compound primary keys
-		int id = 0;
-		foreach (var p in keyProperties)
+		long id = 0;
+		foreach (var p in propertyInfos)
 		{
 			var value = ((IDictionary<string, object>)results.First())[p.Name.ToLower()];
 			p.SetValue(entityToInsert, value, null);
 			if (id == 0)
-				id = Convert.ToInt32(value);
+				id = Convert.ToInt64(value);
 		}
 		return id;
 	}
@@ -764,16 +766,19 @@ public class PostgresAdapter : ISqlAdapter
 
 public class SQLiteAdapter : ISqlAdapter
 {
-	public int Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, String tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
+	public long Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
 	{
-		string cmd = String.Format("insert into {0} ({1}) values ({2})", tableName, columnList, parameterList);
+		var cmd = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", tableName, columnList, parameterList);
 
 		connection.Execute(cmd, entityToInsert, transaction: transaction, commandTimeout: commandTimeout);
 
-		var r = connection.Query("select last_insert_rowid() id", transaction: transaction, commandTimeout: commandTimeout);
-		int id = (int)r.First().id;
-		if (keyProperties.Any())
-			keyProperties.First().SetValue(entityToInsert, id, null);
+		var r = connection.Query("SELECT last_insert_rowid() id", transaction: transaction, commandTimeout: commandTimeout);
+		var id = (long)r.First().id;
+
+		var propertyInfos = keyProperties.ToList();
+		if (propertyInfos.Any())
+			propertyInfos.First().SetValue(entityToInsert, id, null);
+
 		return id;
 	}
 
