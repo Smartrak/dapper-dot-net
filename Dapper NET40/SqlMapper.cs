@@ -2075,14 +2075,33 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
 
         static IEnumerable<TReturn> MultiMapImpl<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TEighth, TNinth, TTenth, T11, T12, T13, T14, T15, TReturn>(this IDbConnection cnn, CommandDefinition command, Delegate map, string splitOn, IDataReader reader, Identity identity, bool finalize)
         {
-            object param = command.Parameters;
-            identity = identity ?? new Identity(command.CommandText, command.CommandType, cnn, typeof(TFirst), param == null ? null : param.GetType(), new[] { typeof(TFirst), typeof(TSecond), typeof(TThird), typeof(TFourth), typeof(TFifth), typeof(TSixth), typeof(TSeventh) });
-            CacheInfo cinfo = GetCacheInfo(identity, param, command.AddToCache);
+            var param = command.Parameters;
+            identity = identity ?? new Identity(command.CommandText, command.CommandType, cnn, typeof(TFirst), param == null ? null : param.GetType(),
+                new []
+                {
+                  typeof (TFirst),
+                  typeof (TSecond),
+                  typeof (TThird),
+                  typeof (TFourth),
+                  typeof (TFifth),
+                  typeof (TSixth),
+                  typeof (TSeventh),
+                  typeof (TEighth),
+                  typeof (TNinth),
+                  typeof (TTenth),
+                  typeof (T11),
+                  typeof (T12),
+                  typeof (T13),
+                  typeof (T14),
+                  typeof (T15)
+                });
+
+            var cinfo = GetCacheInfo(identity, param, command.AddToCache);
 
             IDbCommand ownedCommand = null;
             IDataReader ownedReader = null;
 
-            bool wasClosed = cnn != null && cnn.State == ConnectionState.Closed;
+            var wasClosed = cnn != null && cnn.State == ConnectionState.Closed;
             try
             {
                 if (reader == null)
@@ -2092,19 +2111,40 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                     ownedReader = ownedCommand.ExecuteReader(wasClosed ? CommandBehavior.CloseConnection | CommandBehavior.SequentialAccess : CommandBehavior.SequentialAccess);
                     reader = ownedReader;
                 }
-                DeserializerState deserializer = default(DeserializerState);
+                var deserializer = default(DeserializerState);
                 Func<IDataReader, object>[] otherDeserializers = null;
 
-                int hash = GetColumnHash(reader);
+                var hash = GetColumnHash(reader);
                 if ((deserializer = cinfo.Deserializer).Func == null || (otherDeserializers = cinfo.OtherDeserializers) == null || hash != deserializer.Hash)
                 {
-                    var deserializers = GenerateDeserializers(new Type[] { typeof(TFirst), typeof(TSecond), typeof(TThird), typeof(TFourth), typeof(TFifth), typeof(TSixth), typeof(TSeventh) }, splitOn, reader);
+                    var deserializers = GenerateDeserializers(
+                        new []
+                        {
+                          typeof (TFirst),
+                          typeof (TSecond),
+                          typeof (TThird),
+                          typeof (TFourth),
+                          typeof (TFifth),
+                          typeof (TSixth),
+                          typeof (TSeventh),
+                          typeof (TEighth),
+                          typeof (TNinth),
+                          typeof (TTenth),
+                          typeof (T11),
+                          typeof (T12),
+                          typeof (T13),
+                          typeof (T14),
+                          typeof (T15)
+                        }, splitOn, reader);
+
                     deserializer = cinfo.Deserializer = new DeserializerState(hash, deserializers[0]);
                     otherDeserializers = cinfo.OtherDeserializers = deserializers.Skip(1).ToArray();
-                    if(command.AddToCache) SetQueryCache(identity, cinfo);
+
+                    if (command.AddToCache)
+                        SetQueryCache(identity, cinfo);
                 }
 
-                Func<IDataReader, TReturn> mapIt = GenerateMapper<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TEighth, TNinth, TTenth, T11, T12, T13, T14, T15, TReturn>(deserializer.Func, otherDeserializers, map);
+                var mapIt = GenerateMapper<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TEighth, TNinth, TTenth, T11, T12, T13, T14, T15, TReturn>(deserializer.Func, otherDeserializers, map);
 
                 if (mapIt != null)
                 {
@@ -2112,11 +2152,12 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                     {
                         yield return mapIt(reader);
                     }
-                    if(finalize)
+
+                    if (finalize)
                     {
                         while (reader.NextResult()) { }
                         command.OnCompleted();
-                    }                    
+                    }
                 }
             }
             finally
@@ -2134,7 +2175,11 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                     {
                         ownedCommand.Dispose();
                     }
-                    if (wasClosed) cnn.Close();
+
+                    if (wasClosed)
+                    {
+                        cnn.Close();
+                    }
                 }
             }
         }
