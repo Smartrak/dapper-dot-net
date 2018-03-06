@@ -206,15 +206,20 @@ namespace Dapper.Contrib.Smartrak.Extensions
 			string name;
 			if (!TypeTableName.TryGetValue(type.TypeHandle, out name))
 			{
-				name = type.Name + "s";
-				if (type.IsInterface && name.StartsWith("I"))
-					name = name.Substring(1);
+				var tableattr = type.GetCustomAttributes(false).Where(attr => attr.GetType().Name == "TableAttribute").SingleOrDefault();
 
+				if (tableattr is TableAttribute)
+					name = (tableattr as TableAttribute).Name;
 				//NOTE: This as dynamic trick should be able to handle both our own Table-attribute as well as the one in EntityFramework 
-				var tableattr = type.GetCustomAttributes(false).Where(attr => attr.GetType().Name == "TableAttribute").SingleOrDefault() as
-					dynamic;
-				if (tableattr != null)
-					name = tableattr.Name;
+				else if (tableattr != null)
+					name = (tableattr as dynamic).Name;
+				else
+				{
+					name = type.Name + "s";
+					if (type.IsInterface && name.StartsWith("I"))
+						name = name.Substring(1);
+				}
+
 				TypeTableName[type.TypeHandle] = name;
 			}
 			return name;
