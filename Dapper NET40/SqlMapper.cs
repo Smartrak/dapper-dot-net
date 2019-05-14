@@ -3490,15 +3490,54 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                 il.Emit(OpCodes.Dup);// stack is now [parameters] [[parameters]] [parameter] [parameter]
                 il.Emit(OpCodes.Ldloc_0); // stack is now [parameters] [[parameters]] [parameter] [parameter] [typed-param]
                 il.Emit(callOpCode, prop.GetGetMethod()); // stack is [parameters] [[parameters]] [parameter] [parameter] [typed-value]
-                bool checkForNull = true;
-                if (prop.PropertyType.IsValueType())
-                {
-                    il.Emit(OpCodes.Box, prop.PropertyType); // stack is [parameters] [[parameters]] [parameter] [parameter] [boxed-value]
-                    if (Nullable.GetUnderlyingType(prop.PropertyType) == null)
-                    {   // struct but not Nullable<T>; boxed value cannot be null
-                        checkForNull = false;
-                    }
-                }
+				bool checkForNull;
+				if (prop.PropertyType.IsValueType())
+				{
+					var propType = prop.PropertyType;
+					var nullType = Nullable.GetUnderlyingType(propType);
+					bool callSanitize = false;
+
+					if ((nullType ?? propType).IsEnum())
+					{
+						if (nullType != null)
+						{
+							// Nullable<SomeEnum>; we want to box as the underlying type; that's just *hard*; for
+							// simplicity, box as Nullable<SomeEnum> and call SanitizeParameterValue
+							callSanitize = checkForNull = true;
+						}
+						else
+						{
+							checkForNull = false;
+							// non-nullable enum; we can do that! just box to the wrong type! (no, really)
+							switch (TypeExtensions.GetTypeCode(Enum.GetUnderlyingType(propType)))
+							{
+								case TypeCode.Byte: propType = typeof(byte); break;
+								case TypeCode.SByte: propType = typeof(sbyte); break;
+								case TypeCode.Int16: propType = typeof(short); break;
+								case TypeCode.Int32: propType = typeof(int); break;
+								case TypeCode.Int64: propType = typeof(long); break;
+								case TypeCode.UInt16: propType = typeof(ushort); break;
+								case TypeCode.UInt32: propType = typeof(uint); break;
+								case TypeCode.UInt64: propType = typeof(ulong); break;
+							}
+						}
+					}
+					else
+					{
+						checkForNull = nullType != null;
+					}
+					il.Emit(OpCodes.Box, propType); // stack is [parameters] [[parameters]] [parameter] [parameter] [boxed-value]
+					if (callSanitize)
+					{
+						checkForNull = false; // handled by sanitize
+						il.EmitCall(OpCodes.Call, typeof(SqlMapper).GetMethod(nameof(SanitizeParameterValue)), null);
+						// stack is [parameters] [[parameters]] [parameter] [parameter] [boxed-value]
+					}
+				}
+				else
+				{
+					checkForNull = true; // if not a value-type, need to check
+				}
                 if (checkForNull)
                 {
                     if ((dbType == DbType.String || dbType == DbType.AnsiString) && !haveInt32Arg1)
